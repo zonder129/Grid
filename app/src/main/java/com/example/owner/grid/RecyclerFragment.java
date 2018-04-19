@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -11,30 +12,26 @@ import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Objects;
-import java.util.logging.Logger;
 
 public class RecyclerFragment extends Fragment {
 
-    public static String ARRAY = "array";
-
     public static String VALUES = "values";
 
-    RecyclerView recyclerView;
+    public static String MAP = "MAP";
 
     ItemClickListener itemClickListener = new MyListener();
 
     Context context;
 
-    List<String> values = new ArrayList<>();
+    private HashMap<Integer, String> itemIdsToValuesMap = new HashMap<>();
 
     RecyclerView.Adapter recyclerViewAdapter;
 
@@ -71,11 +68,14 @@ public class RecyclerFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        if (savedInstanceState != null) {
+            this.itemIdsToValuesMap = (HashMap<Integer, String>) savedInstanceState.getSerializable(MAP);
+        }
         context = Objects.requireNonNull(container).getContext();
 
         final LinearLayout view = (LinearLayout) inflater.inflate(R.layout.portrait_fragment, container, false);
 
-        recyclerView = view.findViewById(R.id.recycler_view1);
+        RecyclerView recyclerView = view.findViewById(R.id.recycler_view1);
 
         Integer spanCount;
 
@@ -88,7 +88,7 @@ public class RecyclerFragment extends Fragment {
 
         recyclerView.setLayoutManager(recyclerViewLayoutManager);
 
-        recyclerViewAdapter = new RecyclerViewAdapter(context,numbers, itemClickListener);
+        recyclerViewAdapter = new RecyclerViewAdapter(context, numbers, itemIdsToValuesMap, itemClickListener);
 
         recyclerView.setAdapter(recyclerViewAdapter);
 
@@ -102,14 +102,23 @@ public class RecyclerFragment extends Fragment {
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putSerializable(ARRAY, numbers);
-        outState.putStringArrayList(VALUES, (ArrayList<String>) values);
+        outState.putSerializable(MAP, itemIdsToValuesMap);
     }
 
     class MyListener implements ItemClickListener {
         @Override
-        public void onItemClick(String value) {
-            values.add(value);
+        public void onItemClick(RecyclerViewAdapter.ViewHolder viewHolder, View view) {
+            Integer id = viewHolder.getAdapterPosition();
+            String value = numbers[id];
+           if (itemIdsToValuesMap.containsKey(id)) {
+               Log.i("ALREADY IN MAP ", id.toString());
+                view.setBackgroundColor(Color.WHITE);
+                itemIdsToValuesMap.remove(id);
+            } else {
+               Log.i("PUT IN MAP ", id.toString());
+               view.setBackgroundColor(Color.CYAN);
+               itemIdsToValuesMap.put(id, value);
+           }
         }
     }
 
@@ -119,8 +128,8 @@ public class RecyclerFragment extends Fragment {
         public void onClick(View v) {
             ResultFragment resultFragment = new ResultFragment();
             Bundle bundle = new Bundle();
-            bundle.putStringArrayList(VALUES, (ArrayList<String>) values);
-            Log.i("ALL ", values.toString());
+            ArrayList<String> list = new ArrayList<>(itemIdsToValuesMap.values());
+            bundle.putStringArrayList(VALUES, list);
             resultFragment.setArguments(bundle);
             Objects.requireNonNull(getFragmentManager()).beginTransaction().replace(R.id.container, resultFragment).
                     addToBackStack(null).commit();
